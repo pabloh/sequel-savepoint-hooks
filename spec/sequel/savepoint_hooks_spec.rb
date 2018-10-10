@@ -214,6 +214,29 @@ describe Sequel::SavepointHooks do
       assert_equal [:commit2, :commit3, :commit1], @hooks
     end
 
+    it "should open savepoints for all the nested transaction with callbacks" do
+      DB.transaction hooks: :savepoint do
+        DB.after_commit   { @hooks << :commit1   }
+        DB.after_rollback { @hooks << :rollback1 }
+
+        DB.transaction savepoint: true do
+          DB.after_commit   { @hooks << :commit2   }
+          DB.after_rollback { @hooks << :rollback2 }
+
+          assert_equal [], @hooks
+
+          DB.transaction savepoint: true do
+            DB.after_commit   { @hooks << :commit3   }
+            DB.after_rollback { @hooks << :rollback3 }
+          end
+        end
+
+        assert_equal [:commit3, :commit2], @hooks
+      end
+
+      assert_equal [:commit3, :commit2, :commit1], @hooks
+    end
+
     it "should support being overridden with :hooks=>false" do
       DB.transaction hooks: :savepoint do
         DB.after_commit { @hooks << :commit1 }
